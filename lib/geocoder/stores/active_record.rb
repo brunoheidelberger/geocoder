@@ -33,7 +33,7 @@ module Geocoder::Store
         #
         scope :near, lambda{ |location, *args|
           latitude, longitude = Geocoder::Calculations.extract_coordinates(location)
-          if latitude and longitude
+          if latitude and longitude and ![latitude, longitude].include?(Geocoder::Calculations::NAN)
             near_scope_options(latitude, longitude, *args)
           else
             where(false_condition) # no results if no lat/lon given
@@ -202,10 +202,10 @@ module Geocoder::Store
         end
         if options[:bearing]
           bearing = "CASE " +
-            "WHEN (#{lat_attr} >= #{latitude} AND #{lon_attr} >= #{longitude}) THEN  45.0 " +
-            "WHEN (#{lat_attr} <  #{latitude} AND #{lon_attr} >= #{longitude}) THEN 135.0 " +
-            "WHEN (#{lat_attr} <  #{latitude} AND #{lon_attr} <  #{longitude}) THEN 225.0 " +
-            "WHEN (#{lat_attr} >= #{latitude} AND #{lon_attr} <  #{longitude}) THEN 315.0 " +
+            "WHEN (#{full_column_name(lat_attr)} >= #{latitude} AND #{full_column_name(lon_attr)} >= #{longitude}) THEN  45.0 " +
+            "WHEN (#{full_column_name(lat_attr)} <  #{latitude} AND #{full_column_name(lon_attr)} >= #{longitude}) THEN 135.0 " +
+            "WHEN (#{full_column_name(lat_attr)} <  #{latitude} AND #{full_column_name(lon_attr)} <  #{longitude}) THEN 225.0 " +
+            "WHEN (#{full_column_name(lat_attr)} >= #{latitude} AND #{full_column_name(lon_attr)} <  #{longitude}) THEN 315.0 " +
           "END"
         else
           bearing = false
@@ -216,7 +216,7 @@ module Geocoder::Store
 
         b = Geocoder::Calculations.bounding_box([latitude, longitude], radius, options)
         conditions = [
-          "#{lat_attr} BETWEEN ? AND ? AND #{lon_attr} BETWEEN ? AND ?"] +
+          "#{full_column_name(lat_attr)} BETWEEN ? AND ? AND #{full_column_name(lon_attr)} BETWEEN ? AND ?"] +
           [b[0], b[2], b[1], b[3]
         ]
         default_near_scope_options(latitude, longitude, radius, options).merge(
